@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Crown release sizes</title>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HBZD4B34QJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-HBZD4B34QJ');
+</script>
+<style>
+body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
+object { display: block; width: 100%; aspect-ratio: 16 / 9; }
+</style>
+<h1>Crown release sizes</h1>
+<p>Click a legend entry to show or hide a series. Click a plot to toggle version and size readouts.</p>
+<h2>Deployment Size</h2>
+<p>Release deployment of an empty project (samples/00-empty). Android measures the final APK; other targets sum deployed files.</p>
+<object data="plots/deployment.svg" type="image/svg+xml" aria-label="Deployment Size"><a href="plots/deployment.svg">Deployment Size</a></object>
+<h2>Runtime Size</h2>
+<p>Runtime binaries, excluding shared dependencies and separate debug symbols.</p>
+<object data="plots/runtime-release.svg" type="image/svg+xml" aria-label="Runtime Size"><a href="plots/runtime-release.svg">Runtime Size</a></object>
+<h2>Editor Size</h2>
+<p>Editor binaries, excluding shared dependencies and separate debug symbols.</p>
+<object data="plots/editor.svg" type="image/svg+xml" aria-label="Editor Size"><a href="plots/editor.svg">Editor Size</a></object>
+<h2>Archive Size</h2>
+<p>Compressed archive size and the sum of extracted files sizes.</p>
+<object data="plots/archives.svg" type="image/svg+xml" aria-label="Archive Size"><a href="plots/archives.svg">Archive Size</a></object>
+</html>
