@@ -1,0 +1,11 @@
+archive,platform,component,configuration,bytes
+"crown-0.42.0-android-arm.tar.gz","android-arm","runtime","development",26210844
+"crown-0.42.0-android-arm.tar.gz","android-arm","runtime","release",2919384
+"crown-0.42.0-android-arm64.tar.gz","android-arm64","runtime","development",26722744
+"crown-0.42.0-android-arm64.tar.gz","android-arm64","runtime","release",3517152
+"crown-0.42.0-linux-x64.tar.gz","linux64","editor","release",740176
+"crown-0.42.0-linux-x64.tar.gz","linux64","runtime","development",36947792
+"crown-0.42.0-linux-x64.tar.gz","linux64","runtime","release",3835664
+"crown-0.42.0-windows-x64.zip","windows64","editor","release",742400
+"crown-0.42.0-windows-x64.zip","windows64","runtime","development",1940480
+"crown-0.42.0-windows-x64.zip","windows64","runtime","release",1508864

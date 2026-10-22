@@ -1,0 +1,5 @@
+archive,url,compressed_bytes,extracted_bytes
+"crown-0.46.0-android-arm.tar.gz","https://github.com/crownengine/crown/releases/download/v0.46.0/crown-0.46.0-android-arm.tar.gz",9957176,29199712
+"crown-0.46.0-android-arm64.tar.gz","https://github.com/crownengine/crown/releases/download/v0.46.0/crown-0.46.0-android-arm64.tar.gz",9941656,31147744
+"crown-0.46.0-linux-x64.tar.gz","https://github.com/crownengine/crown/releases/download/v0.46.0/crown-0.46.0-linux-x64.tar.gz",23236083,66670553
+"crown-0.46.0-windows-x64.zip","https://github.com/crownengine/crown/releases/download/v0.46.0/crown-0.46.0-windows-x64.zip",36930215,113158428

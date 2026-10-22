@@ -1,0 +1,4 @@
+archive,platform,component,configuration,bytes
+"crown-0.37.0-linux-x64.tar.gz","linux64","editor","release",4125952
+"crown-0.37.0-linux-x64.tar.gz","linux64","runtime","development",36572880
+"crown-0.37.0-linux-x64.tar.gz","linux64","runtime","release",3774096

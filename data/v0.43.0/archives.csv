@@ -1,0 +1,5 @@
+archive,url,compressed_bytes,extracted_bytes
+"crown-0.43.0-android-arm.tar.gz","https://github.com/crownengine/crown/releases/download/v0.43.0/crown-0.43.0-android-arm.tar.gz",9954237,29186340
+"crown-0.43.0-android-arm64.tar.gz","https://github.com/crownengine/crown/releases/download/v0.43.0/crown-0.43.0-android-arm64.tar.gz",9720503,30318720
+"crown-0.43.0-linux-x64.tar.gz","https://github.com/crownengine/crown/releases/download/v0.43.0/crown-0.43.0-linux-x64.tar.gz",22825173,66016063
+"crown-0.43.0-windows-x64.zip","https://github.com/crownengine/crown/releases/download/v0.43.0/crown-0.43.0-windows-x64.zip",36545218,112585386

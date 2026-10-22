@@ -1,0 +1,218 @@
+name: Collect stats
+
+on:
+  push:
+    branches-ignore:
+      - gh-pages
+
+permissions:
+  contents: read
+
+concurrency:
+  group: collect-${{ github.ref }}
+  queue: max
+
+jobs:
+  request:
+    runs-on: ubuntu-24.04
+    outputs:
+      release: ${{ steps.request.outputs.release }}
+      windows: ${{ steps.request.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - name: Read collection request
+        id: request
+        shell: bash
+        run: |
+          git show -s --format=%B "$GITHUB_SHA" > "$RUNNER_TEMP/message"
+          sh .github/collection-request.sh "$RUNNER_TEMP/message" "$RUNNER_TEMP/request"
+          if test -f "$RUNNER_TEMP/request/release"
+          then
+            echo "release=$(cat "$RUNNER_TEMP/request/release")" >> "$GITHUB_OUTPUT"
+            if test -s "$RUNNER_TEMP/request/windows-urls"
+            then
+              echo 'windows=true' >> "$GITHUB_OUTPUT"
+            fi
+          fi
+      - uses: actions/upload-artifact@v4
+        if: steps.request.outputs.release != ''
+        with:
+          name: collection-request
+          path: ${{ runner.temp }}/request/
+          retention-days: 7
+
+  linux:
+    needs: request
+    if: needs.request.outputs.release != ''
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      RELEASE: ${{ needs.request.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: collection-request
+          path: ${{ runner.temp }}/request
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install deployment dependencies
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y curl tar unzip dbus-x11 xvfb xauth \
+            libgtk-3-0t64 libgtk-4-1 libgl1 libxrandr2 libxkbcommon0 \
+            libopenal1 libc6-i386 lib32gcc-s1
+          "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" \
+            'platforms;android-34' 'build-tools;34.0.0' 'ndk;23.2.8568313'
+          echo "ANDROID_SDK_PATH=$ANDROID_HOME" >> "$GITHUB_ENV"
+          echo "ANDROID_NDK_ROOT=$ANDROID_HOME/ndk/23.2.8568313" >> "$GITHUB_ENV"
+          git clone --depth 1 https://github.com/emscripten-core/emsdk.git "$RUNNER_TEMP/emsdk"
+          "$RUNNER_TEMP/emsdk/emsdk" install 6.0.6
+          "$RUNNER_TEMP/emsdk/emsdk" activate 6.0.6
+          echo "EMSCRIPTEN=$RUNNER_TEMP/emsdk/upstream/emscripten" >> "$GITHUB_ENV"
+      - name: Collect sizes and deployments
+        shell: bash
+        run: |
+          set --
+          while IFS= read -r url
+          do
+            set -- "$@" "$url"
+          done < "$RUNNER_TEMP/request/urls"
+          mkdir -p trash
+          xvfb-run -a ./run-stats.sh --deploy "$RELEASE" "$@" 2>&1 | tee trash/collection.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: collected-linux
+          path: |
+            data/releases.csv
+            data/${{ env.RELEASE }}/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: linux-logs
+          path: trash/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  windows:
+    needs: request
+    if: needs.request.outputs.windows == 'true'
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      RELEASE: ${{ needs.request.outputs.release }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: collection-request
+          path: ${{ runner.temp }}/request
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: MINGW64
+          install: coreutils curl tar unzip gawk sed findutils
+      - name: Collect Windows deployments
+        shell: msys2 {0}
+        run: |
+          set -euo pipefail
+          request=$(cygpath -u "$RUNNER_TEMP")/request
+          result=$(cygpath -u "$RUNNER_TEMP")/windows-result
+          mkdir -p "$result" trash
+          cp "$request/release" "$result/release"
+          rm -f "data/$RELEASE/deployments/windows64.csv"
+          set --
+          while IFS= read -r url
+          do
+            set -- "$@" "$url"
+          done < "$request/windows-urls"
+          status=0
+          sh ./run-stats.sh --deploy --deploy-platform windows64 "$RELEASE" "$@" 2>&1 | tee trash/collection.log || status=$?
+          if test -f "data/$RELEASE/deployments/windows64.csv"
+          then
+            cp "data/$RELEASE/deployments/windows64.csv" "$result/"
+          fi
+          exit "$status"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: collected-windows
+          path: ${{ runner.temp }}/windows-result/
+          if-no-files-found: ignore
+          retention-days: 7
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: windows-logs
+          path: trash/**/*.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  save:
+    needs: [request, linux, windows]
+    if: >-
+      !cancelled() && needs.linux.result == 'success' &&
+      (needs.windows.result == 'success' || needs.windows.result == 'skipped')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    env:
+      RELEASE: ${{ needs.request.outputs.release }}
+      COLLECTION_BRANCH: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: collected-linux
+          path: data
+      - uses: actions/download-artifact@v4
+        if: needs.windows.result == 'success'
+        with:
+          name: collected-windows
+          path: ${{ runner.temp }}/windows-result
+      - name: Save measurements
+        shell: bash
+        run: |
+          if test -f "$RUNNER_TEMP/windows-result/windows64.csv"
+          then
+            mkdir -p "data/$RELEASE/deployments"
+            cp "$RUNNER_TEMP/windows-result/windows64.csv" "data/$RELEASE/deployments/"
+          fi
+          git add -- data/releases.csv "data/$RELEASE"
+          if git diff --cached --quiet
+          then
+            echo 'Measurements are unchanged'
+            exit 0
+          fi
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Update stats for $RELEASE"
+          for attempt in 1 2 3
+          do
+            echo "Saving measurements (attempt $attempt)"
+            git fetch origin "refs/heads/$COLLECTION_BRANCH"
+            git merge-base --is-ancestor "$GITHUB_SHA" FETCH_HEAD || {
+              echo 'Branch history changed; refusing to push outdated results' >&2
+              exit 1
+            }
+            git rebase FETCH_HEAD
+            if git push origin "HEAD:refs/heads/$COLLECTION_BRANCH"
+            then
+              exit 0
+            fi
+          done
+          echo 'Could not push measurements after three attempts' >&2
+          exit 1

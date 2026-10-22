@@ -1,0 +1,7 @@
+archive,platform,component,configuration,bytes
+"crown-0.39.0-linux-x64.tar.gz","linux64","editor","release",4270512
+"crown-0.39.0-linux-x64.tar.gz","linux64","runtime","development",36625032
+"crown-0.39.0-linux-x64.tar.gz","linux64","runtime","release",3774096
+"crown-0.39.0-windows-x64.zip","windows64","editor","release",6010604
+"crown-0.39.0-windows-x64.zip","windows64","runtime","development",1820160
+"crown-0.39.0-windows-x64.zip","windows64","runtime","release",1468928
