@@ -1,0 +1,10 @@
+archive,platform,component,configuration,bytes
+"crown-0.65.5-windows-x64.zip","android-arm","runtime","development",24318824
+"crown-0.65.5-windows-x64.zip","android-arm","runtime","release",3450688
+"crown-0.65.5-windows-x64.zip","android-arm64","runtime","development",29096624
+"crown-0.65.5-windows-x64.zip","android-arm64","runtime","release",4316040
+"crown-0.65.5-windows-x64.zip","wasm","runtime","development",2667399
+"crown-0.65.5-windows-x64.zip","wasm","runtime","release",1887224
+"crown-0.65.5-windows-x64.zip","windows64","editor","release",3337728
+"crown-0.65.5-windows-x64.zip","windows64","runtime","development",49989396
+"crown-0.65.5-windows-x64.zip","windows64","runtime","release",4886528

@@ -124,6 +124,15 @@ cat >"$work/index.html" <<-EOF
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Crown release sizes</title>
+<!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-HBZD4B34QJ"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-HBZD4B34QJ');
+</script>
 <style>
 body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
 object { display: block; width: 100%; aspect-ratio: 16 / 9; }
@@ -172,6 +181,8 @@ do
 	# Customize SVG controls and replace coordinate indices with release labels.
 	awk -F '\t' '
 		FNR == NR { releases[++count] = $2; next }
+		# Older gnuplot scripts embed a CDATA terminator in a JavaScript string.
+		{ gsub(/"]]>"/, "\"]]]]><![CDATA[>\"") }
 		/<\/svg>/ {
 			print "<script type=\"text/javascript\"><![CDATA["
 			printf "var releases = ["

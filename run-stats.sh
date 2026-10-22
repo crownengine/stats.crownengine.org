@@ -133,7 +133,10 @@ collect_deployments () {
 	rm -rf "$deployment_work"
 	mkdir -p "$deployment_work/config" "$deployment_work/data-home" \
 		"$deployment_work/cache" "$deployment_work/tmp" || return 1
-	mkdir -m 700 "$deployment_work/runtime" || return 1
+	case "$deployment_host" in
+	windows64) mkdir "$deployment_work/runtime" || return 1 ;;
+	*) mkdir -m 700 "$deployment_work/runtime" || return 1 ;;
+	esac
 	deployment_logs=$root/trash/deploy-$release
 	if ! run_editor --help >"$deployment_work/help" 2>&1
 	then

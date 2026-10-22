@@ -27,6 +27,7 @@ work=$(mktemp -d "$root/trash/publish.XXXXXX") || exit 1
 trap 'rm -rf "$work"' 0
 trap 'exit 130' 1 2 3 15
 "$root/plot.sh" "$work/site" || exit 1
+previous=$(git rev-parse --verify refs/heads/gh-pages 2>/dev/null) || previous=
 
 GIT_DIR=$git_dir
 GIT_WORK_TREE=$work/site
@@ -35,8 +36,12 @@ export GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$GIT_WORK_TREE" || exit 1
 git read-tree --empty || exit 1
 git add --force -- index.html plots .nojekyll || exit 1
+if test -n "$previous"
+then
+	git ls-tree "$previous" -- CNAME >"$work/cname" || exit 1
+	git update-index --index-info <"$work/cname" || exit 1
+fi
 tree=$(git write-tree) || exit 1
-previous=$(git rev-parse --verify refs/heads/gh-pages 2>/dev/null) || previous=
 if test -n "$previous"
 then
 	previous_tree=$(git rev-parse "$previous^{tree}") || exit 1
