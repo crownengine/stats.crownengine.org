@@ -118,6 +118,15 @@ awk -F '\t' -v directory="$work" '
 	}
 ' "$work/releases.tsv" "$work/sorted.tsv" || exit 1
 
+# sRGB equivalents of crown-website's silver and cool-horizon color roles.
+canvas='#050607'
+surface='#121415'
+line='#27292b'
+grid='#505356'
+ink='#f6f7f8'
+muted='#b5b8ba'
+brand='#71aaf4'
+
 cat >"$work/index.html" <<-EOF
 <!doctype html>
 <html lang="en">
@@ -134,8 +143,13 @@ cat >"$work/index.html" <<-EOF
   gtag('config', 'G-HBZD4B34QJ');
 </script>
 <style>
-body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; }
-object { display: block; width: 100%; aspect-ratio: 16 / 9; }
+html { color-scheme: dark; background: $canvas; color: $ink; font-family: "Inter Variable", Inter, system-ui, sans-serif; }
+body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; font-size: 18px; line-height: 1.6; }
+h1, h2 { line-height: 1.2; }
+h2 { margin-top: 3rem; color: $brand; }
+p { color: $muted; }
+a { color: $brand; }
+object { display: block; width: 100%; aspect-ratio: 16 / 9; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
 </style>
 <h1>Crown release sizes</h1>
 <p>Click a legend entry to show or hide a series. Click a plot to toggle version and size readouts.</p>
@@ -160,30 +174,60 @@ do
 	archives) description='Compressed archive size and the sum of extracted files sizes.' ;;
 	esac
 	cat >"$work/plot.gnuplot" <<-EOF
-	set terminal svg size 1600,900 dynamic mouse standalone noenhanced
+	set terminal svg size 1600,900 dynamic mouse standalone noenhanced font 'sans-serif,18' background '$surface'
 	set output '$name.svg'
-	set title '$title'
+	set title '$title' font ',24' textcolor rgb '$ink'
 	set datafile separator '\t'
 	set datafile missing 'NaN'
-	set xlabel 'Release'
-	set ylabel 'Size (MiB)'
+	set xlabel 'Release' textcolor rgb '$muted'
+	set ylabel 'Size (MiB)' textcolor rgb '$muted'
 	set yrange [0:*]
 	set lmargin at screen 0.07
-	set rmargin at screen 0.80
-	set bmargin at screen 0.15
+	set rmargin at screen 0.75
+	set bmargin at screen 0.18
 	set tmargin at screen 0.92
-	set grid ytics
-	set xtics rotate by -60 font ',9'
-	set key outside right center
-	plot for [c=2:*] '$name.tsv' using 0:(column(c)/1048576.0):xticlabels(1) with linespoints linewidth 1.5 pointtype 7 pointsize 0.4 title columnheader(c)
+	set border linecolor rgb '$muted'
+	set grid ytics linecolor rgb '$grid' linewidth 1.2 dashtype 3
+	set xtics rotate by -60 font ',13' textcolor rgb '$muted'
+	set ytics textcolor rgb '$muted'
+	set key outside right center font ',17' textcolor variable
 	EOF
+	# Keep platform colors consistent across plots; distinguish related series by line style.
+	awk -F '\t' -v brand="$brand" '
+		NR == 1 {
+			for (column = 2; column <= NF; ++column) {
+				series = $column
+				color = brand
+				if (series ~ /^android/) color = "#3ddc84"
+				else if (series ~ /^linux/) color = "#fcc624"
+				else if (series ~ /^windows/) color = "#00a4ef"
+				else if (series ~ /^wasm/) color = "#9f8cff"
+				else if (series ~ /^html5/) color = "#f06529"
+				else if (series ~ /^(macos|osx)/) color = "#b5b8ba"
+				dash = (series ~ /-uncompressed$/ ? 2 : 1)
+				point = 7
+				if (series ~ /^(android-arm64|wasm64)$/) {
+					dash = 3
+					point = 9
+				}
+				printf "set style line %d linecolor rgb \"%s\" linewidth 3 dashtype %d pointtype %d pointsize 0.7\n", column - 1, color, dash, point
+			}
+			exit
+		}
+	' "$table" >>"$work/plot.gnuplot" || exit 1
+	printf "plot for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):xticlabels(1) with linespoints linestyle (c - 1) title columnheader(c)\n" \
+		"$name" >>"$work/plot.gnuplot" || exit 1
 	(cd "$work" && gnuplot plot.gnuplot) || exit 1
 	# Customize SVG controls and replace coordinate indices with release labels.
-	awk -F '\t' '
+	awk -F '\t' -v ink="$ink" -v surface="$surface" -v muted="$muted" '
 		FNR == NR { releases[++count] = $2; next }
 		# Older gnuplot scripts embed a CDATA terminator in a JavaScript string.
 		{ gsub(/"]]>"/, "\"]]]]><![CDATA[>\"") }
 		/<\/svg>/ {
+			print "<style>"
+			printf "#coord_text, #hypertext { fill: %s; font-family: sans-serif; font-size: 18px; }\n", ink
+			printf "#hypertextbox { fill: %s; stroke: %s; }\n", surface, muted
+			print "</style>"
 			print "<script type=\"text/javascript\"><![CDATA["
 			printf "var releases = ["
 			for (i = 1; i <= count; ++i)
