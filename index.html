@@ -15,24 +15,15 @@
 <style>
 html { color-scheme: dark; background: #050607; color: #f6f7f8; font-family: "Inter Variable", Inter, system-ui, sans-serif; }
 body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; font-size: 18px; line-height: 1.6; }
-h1, h2 { line-height: 1.2; }
-h2 { margin-top: 3rem; color: #71aaf4; }
+h1 { line-height: 1.2; }
 p { color: #b5b8ba; }
 a { color: #71aaf4; }
-object { display: block; width: 100%; aspect-ratio: 16 / 9; box-sizing: border-box; background: #121415; border: 1px solid #27292b; border-radius: 0.5rem; }
+object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-sizing: border-box; background: #121415; border: 1px solid #27292b; border-radius: 0.5rem; }
 </style>
 <h1>Crown release sizes</h1>
 <p>Click a legend entry to show or hide a series. Click a plot to toggle version and size readouts.</p>
-<h2>Deployment Size</h2>
-<p>Release deployment of an empty project (samples/00-empty). Android measures the final APK; other targets sum deployed files.</p>
 <object data="plots/deployment.svg" type="image/svg+xml" aria-label="Deployment Size"><a href="plots/deployment.svg">Deployment Size</a></object>
-<h2>Runtime Size</h2>
-<p>Runtime binaries, excluding shared dependencies and separate debug symbols.</p>
 <object data="plots/runtime-release.svg" type="image/svg+xml" aria-label="Runtime Size"><a href="plots/runtime-release.svg">Runtime Size</a></object>
-<h2>Editor Size</h2>
-<p>Editor binaries, excluding shared dependencies and separate debug symbols.</p>
 <object data="plots/editor.svg" type="image/svg+xml" aria-label="Editor Size"><a href="plots/editor.svg">Editor Size</a></object>
-<h2>Archive Size</h2>
-<p>Compressed archive size and the sum of extracted files sizes.</p>
 <object data="plots/archives.svg" type="image/svg+xml" aria-label="Archive Size"><a href="plots/archives.svg">Archive Size</a></object>
 </html>
