@@ -6,7 +6,7 @@
 >
 
 <title>Gnuplot</title>
-<desc>Produced by GNUPLOT 6.0 patchlevel 5 </desc>
+<desc>Produced by GNUPLOT 6.0 patchlevel 0 </desc>
 
 <script type="text/javascript" > <![CDATA[
 // From:	Marko Karjalainen <markokarjalainen@kolumbus.fi>
@@ -48,7 +48,7 @@ if (window) {
 
 gnuplot_svg = function (svgElement) {
 
-    var version = '17 February 2025';
+    var version = '09 April 2019';
 
     var settings = {};
 
@@ -100,9 +100,10 @@ gnuplot_svg = function (svgElement) {
     var parseSettings = function () {
         var script = svgElement.querySelectorAll('script');
         if (script && script[1]) {
-            // Chrome may break the original CDATA section into more than one piece,
-            // which will lead to failure if we don't combine them back into a single section.
-            var scriptText = script[1].innerHTML.replaceAll("<!\[CDATA\[", "").replaceAll("\]\]>", "")
+            // Chrome may break the original CDATA section into more than 1
+            // continous sections witch will lead to failure if we dont
+            // combine them back into 1
+            var scriptText = script[1].innerHTML.replaceAll("<![CDATA[", "").replaceAll("]]]]><![CDATA[>", "")
             // Remove inline comments
             scriptText = scriptText.replace(/^\s*\/\/.*\n/g, '');
             // Change prefix to "
@@ -352,20 +353,6 @@ gnuplot_svg = function (svgElement) {
         // Set coordinate label position
         coordinateText.element.setAttribute('x', position.x);
         coordinateText.element.setAttribute('y', position.y);
-
-        // Do not echo mouse coordinates for 3D plots
-        if (settings.plot_is_not_2D) {
-            coordinateText.element.textContent = '';
-            return;
-        }
-
-        // Echo coordinates only if mouse is in the active plot
-        // Allow one pixel of slop because exact mouse placement is hard
-        if ((position.x < settings.plot_xmin-1 || position.x > settings.plot_xmax+1)
-        ||  (position.y > settings.plot_ybot+1 || position.y < settings.plot_ytop-1)) {
-            coordinateText.element.textContent = '⇩';
-            return;
-        }
 
         // Convert svg position to plot coordinates
         var plotcoord = convertSVGToPlot(position);
@@ -1451,7 +1438,7 @@ onclick="gnuplot_svg.toggleCoordBox(evt)"  onmousemove="gnuplot_svg.moveCoordBox
 		L631.11,203.46 L652.74,203.46 L674.37,203.46 L696.00,172.92 L717.62,172.47 L739.25,172.47 L760.88,172.92 L782.51,172.92
 		L804.14,172.92 L825.77,171.11 L847.40,171.11 L869.03,171.11 L890.66,171.11 L912.29,164.33 L933.92,164.33 L955.55,164.33
 		L977.18,164.33 L998.81,164.33 L1020.44,164.33 L1042.07,164.33 L1063.70,164.33 L1085.33,164.33 L1106.95,163.88 L1128.58,163.88
-		L1150.21,163.88 L1171.84,118.32 L1193.47,118.32 L1215.10,118.32 L1236.73,118.32 L1258.36,118.32  '/>	<use xlink:href='#gpPt6' transform='translate(112.00,327.59) scale(1.80)' color='rgb( 86, 180, 233)'/>
+		L1150.21,163.88 L1171.84,118.32 L1193.47,118.32 L1215.10,118.32 L1236.73,118.32 L1258.36,118.32 L1279.99,118.32  '/>	<use xlink:href='#gpPt6' transform='translate(112.00,327.59) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<use xlink:href='#gpPt6' transform='translate(133.63,326.69) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<use xlink:href='#gpPt6' transform='translate(155.26,324.20) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<use xlink:href='#gpPt6' transform='translate(176.89,323.78) scale(1.80)' color='rgb( 86, 180, 233)'/>
@@ -1505,6 +1492,7 @@ onclick="gnuplot_svg.toggleCoordBox(evt)"  onmousemove="gnuplot_svg.moveCoordBox
 	<use xlink:href='#gpPt6' transform='translate(1215.10,118.32) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<use xlink:href='#gpPt6' transform='translate(1236.73,118.32) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<use xlink:href='#gpPt6' transform='translate(1258.36,118.32) scale(1.80)' color='rgb( 86, 180, 233)'/>
+	<use xlink:href='#gpPt6' transform='translate(1279.99,118.32) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	<g id="gnuplot_plot_3_keyentry" visibility="visible" onclick="gnuplot_svg.toggleVisibility(evt,'gnuplot_plot_3')">
 	<use xlink:href='#gpPt6' transform='translate(1561.93,418.51) scale(1.80)' color='rgb( 86, 180, 233)'/>
 	</g>
@@ -1700,7 +1688,6 @@ gnuplot_svg.plot_ybot = 765.0;
 gnuplot_svg.plot_ytop = 72.0;
 gnuplot_svg.plot_width = 1168.0;
 gnuplot_svg.plot_height = 693.0;
-gnuplot_svg.plot_is_not_2D = false;
 gnuplot_svg.plot_axis_xmin = 0;
 gnuplot_svg.plot_axis_xmax = 54;
 gnuplot_svg.plot_axis_ymin = 0;
