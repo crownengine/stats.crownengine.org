@@ -132,7 +132,7 @@ cat >"$work/index.html" <<-EOF
 <html lang="en">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Crown release sizes</title>
+<title>Crown Build Sizes</title>
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=G-HBZD4B34QJ"></script>
 <script>
@@ -150,7 +150,7 @@ p { color: $muted; }
 a { color: $brand; }
 object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
 </style>
-<h1>Crown release sizes</h1>
+<h1>Crown Build Sizes</h1>
 <p>Click a legend entry to show or hide a series. Hover over a data point to see its size.</p>
 EOF
 
@@ -160,17 +160,18 @@ do
 	name=${table##*/}
 	name=${name%.tsv}
 	case "$name" in
-	deployment) title='Deployment Size' ;;
+	deployment) title='Bundle Size' ;;
 	runtime-release) title='Runtime Size' ;;
 	runtime-*) title="Runtime Size (${name#runtime-})" ;;
 	editor) title='Editor Size' ;;
-	archives) title='Archive Size' ;;
+	archives) title='Package Sizes' ;;
 	esac
 	case "$name" in
-	deployment) description='Release deployment of an empty project (samples/00-empty). Android measures the final APK; other targets sum deployed files.' ;;
-	runtime-*) description='Runtime binaries, excluding shared dependencies and separate debug symbols.' ;;
-	editor) description='Editor binaries, excluding shared dependencies and separate debug symbols.' ;;
-	archives) description='Compressed archive size and the sum of extracted files sizes.' ;;
+	deployment) description='Release bundle of an empty project (samples/00-empty).' ;;
+	runtime-release) description='Crown Runtime binaries in release configuration, excluding shared dependencies.' ;;
+	runtime-*) description='Crown Runtime binaries, excluding shared dependencies.' ;;
+	editor) description='Crown Editor binaries, excluding shared dependencies.' ;;
+	archives) description='Full Crown package, compressed and extracted.' ;;
 	esac
 	cat >"$work/plot.gnuplot" <<-EOF
 	set terminal svg size 1600,900 dynamic mouse standalone enhanced font 'sans-serif,18' background '$surface'
@@ -218,10 +219,16 @@ do
 	printf "plot for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):xticlabels(1) with linespoints linestyle (c - 1) title columnheader(c), for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):(sprintf('%%.2f MiB', column(c)/1048576.0)) with labels hypertext point pointtype 7 pointsize 0.9 linecolor rgb '#ff000000' font 'sans-serif,18' notitle\n" \
 		"$name" "$name" >>"$work/plot.gnuplot" || exit 1
 	(cd "$work" && gnuplot plot.gnuplot) || exit 1
-	# Style the SVG tooltips, legend, and controls.
-	awk -v ink="$ink" -v surface="$surface" -v muted="$muted" '
+	# Style the SVG links, tooltips, legend, and controls.
+	awk -v ink="$ink" -v surface="$surface" -v muted="$muted" -v brand="$brand" '
 		# Older gnuplot scripts embed a CDATA terminator in a JavaScript string.
 		{ gsub(/"]]>"/, "\"]]]]><![CDATA[>\"") }
+		/<text>.*samples\/00-empty/ {
+			sub(/samples\/00-empty/, "<a xlink:href=\"https://github.com/crownengine/crown/tree/master/samples/00-empty\" target=\"_blank\">samples/00-empty</a>")
+		}
+		/<text>.*Full Crown package/ {
+			sub(/Full Crown package/, "<a xlink:href=\"https://crownengine.org/download\" target=\"_blank\">Full Crown package</a>")
+		}
 		# Reference the plot for the blurred legend backdrop.
 		/<\/defs>/ {
 			print
@@ -247,6 +254,7 @@ do
 		}
 		/<\/svg>/ {
 			print "<style>"
+			printf "a { fill: %s; text-decoration: underline; }\n", brand
 			print "#coord_text { display: none; }"
 			print "#hypertext, #hypertextbox { transform: translateY(-32px); }"
 			printf "#hypertext { fill: %s; font-family: sans-serif; font-size: 18px; }\n", ink
