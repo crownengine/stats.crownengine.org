@@ -145,11 +145,10 @@ cat >"$work/index.html" <<-EOF
 <style>
 html { color-scheme: dark; background: $canvas; color: $ink; font-family: "Inter Variable", Inter, system-ui, sans-serif; }
 body { max-width: 1400px; margin: 2rem auto; padding: 0 1rem; text-align: center; font-size: 18px; line-height: 1.6; }
-h1, h2 { line-height: 1.2; }
-h2 { margin-top: 3rem; color: $brand; }
+h1 { line-height: 1.2; }
 p { color: $muted; }
 a { color: $brand; }
-object { display: block; width: 100%; aspect-ratio: 16 / 9; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
+object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
 </style>
 <h1>Crown release sizes</h1>
 <p>Click a legend entry to show or hide a series. Click a plot to toggle version and size readouts.</p>
@@ -174,23 +173,23 @@ do
 	archives) description='Compressed archive size and the sum of extracted files sizes.' ;;
 	esac
 	cat >"$work/plot.gnuplot" <<-EOF
-	set terminal svg size 1600,900 dynamic mouse standalone noenhanced font 'sans-serif,18' background '$surface'
+	set terminal svg size 1600,900 dynamic mouse standalone enhanced font 'sans-serif,18' background '$surface'
 	set output '$name.svg'
-	set title '$title' font ',24' textcolor rgb '$ink'
+	set title "$title\n{/=16 $description}" enhanced font ',24' textcolor rgb '$ink'
 	set datafile separator '\t'
 	set datafile missing 'NaN'
-	set xlabel 'Release' textcolor rgb '$muted'
-	set ylabel 'Size (MiB)' textcolor rgb '$muted'
+	set xlabel 'Release' noenhanced textcolor rgb '$muted'
+	set ylabel "Size (MiB)\n{/=14 Lower is better}" enhanced textcolor rgb '$muted'
 	set yrange [0:*]
 	set lmargin at screen 0.07
-	set rmargin at screen 0.75
+	set rmargin at screen 0.97
 	set bmargin at screen 0.18
-	set tmargin at screen 0.92
+	set tmargin at screen 0.86
 	set border linecolor rgb '$muted'
 	set grid ytics linecolor rgb '$grid' linewidth 1.2 dashtype 3
-	set xtics rotate by -60 font ',13' textcolor rgb '$muted'
-	set ytics textcolor rgb '$muted'
-	set key outside right center font ',17' textcolor variable
+	set xtics noenhanced rotate by -60 font ',13' textcolor rgb '$muted'
+	set ytics noenhanced textcolor rgb '$muted'
+	set key inside left top vertical Left reverse opaque fc rgb '$surface' box linecolor rgb '$grid' linewidth 1 samplen 2.5 spacing 1.1 offset 1,-1 noenhanced font ',17' textcolor variable
 	EOF
 	# Keep platform colors consistent across plots; distinguish related series by line style.
 	awk -F '\t' -v brand="$brand" '
@@ -223,6 +222,29 @@ do
 		FNR == NR { releases[++count] = $2; next }
 		# Older gnuplot scripts embed a CDATA terminator in a JavaScript string.
 		{ gsub(/"]]>"/, "\"]]]]><![CDATA[>\"") }
+		# Reference the live plot so the blurred backdrop follows series toggles.
+		/<\/defs>/ {
+			print
+			print "<g id=\"plot-data\">"
+			next
+		}
+		/<g stroke=.none. shape-rendering=.crispEdges.>/ { print "</g>" }
+		# The key background is the only filled polygon in these line plots.
+		/<polygon / {
+			print "<defs><clipPath id=\"legend-clip\">"
+			print
+			print "</clipPath>"
+			print "<filter id=\"legend-blur\" color-interpolation-filters=\"sRGB\">"
+			print "<feGaussianBlur stdDeviation=\"6\"/>"
+			print "</filter></defs>"
+			print "<g class=\"legend-background\" clip-path=\"url(#legend-clip)\" pointer-events=\"none\">"
+			print
+			print "<use xlink:href=\"#plot-data\" filter=\"url(#legend-blur)\"/>"
+			sub(/<polygon /, "<polygon fill-opacity=\"0.55\" ")
+			print
+			print "</g>"
+			next
+		}
 		/<\/svg>/ {
 			print "<style>"
 			printf "#coord_text, #hypertext { fill: %s; font-family: sans-serif; font-size: 18px; }\n", ink
@@ -257,8 +279,8 @@ do
 		{ print }
 	' "$work/releases.tsv" "$work/$name.svg" >"$work/$name.svg.tmp" || exit 1
 	mv "$work/$name.svg.tmp" "$work/$name.svg" || exit 1
-	printf '<h2>%s</h2>\n<p>%s</p>\n<object data="plots/%s.svg" type="image/svg+xml" aria-label="%s"><a href="plots/%s.svg">%s</a></object>\n' \
-		"$title" "$description" "$name" "$title" "$name" "$title" >>"$work/index.html" || exit 1
+	printf '<object data="plots/%s.svg" type="image/svg+xml" aria-label="%s"><a href="plots/%s.svg">%s</a></object>\n' \
+		"$name" "$title" "$name" "$title" >>"$work/index.html" || exit 1
 done
 printf '</html>\n' >>"$work/index.html" || exit 1
 rm -f "$output/plots/runtime-development.svg" || exit 1
