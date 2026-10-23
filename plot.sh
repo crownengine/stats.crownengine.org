@@ -151,7 +151,7 @@ a { color: $brand; }
 object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
 </style>
 <h1>Crown release sizes</h1>
-<p>Click a legend entry to show or hide a series. Click a plot to toggle version and size readouts.</p>
+<p>Click a legend entry to show or hide a series. Hover over a data point to see its size.</p>
 EOF
 
 for table in "$work"/deployment.tsv "$work"/runtime-*.tsv "$work"/editor.tsv "$work"/archives.tsv
@@ -177,6 +177,7 @@ do
 	set output '$name.svg'
 	set title "$title\n{/=16 $description}" enhanced font ',24' textcolor rgb '$ink'
 	set datafile separator '\t'
+	set datafile columnheaders
 	set datafile missing 'NaN'
 	set xlabel 'Release' noenhanced textcolor rgb '$muted'
 	set ylabel "Size (MiB)\n{/=14 Lower is better}" enhanced textcolor rgb '$muted'
@@ -214,15 +215,14 @@ do
 			exit
 		}
 	' "$table" >>"$work/plot.gnuplot" || exit 1
-	printf "plot for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):xticlabels(1) with linespoints linestyle (c - 1) title columnheader(c)\n" \
-		"$name" >>"$work/plot.gnuplot" || exit 1
+	printf "plot for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):xticlabels(1) with linespoints linestyle (c - 1) title columnheader(c), for [c=2:*] '%s.tsv' using 0:(column(c)/1048576.0):(sprintf('%%.2f MiB', column(c)/1048576.0)) with labels hypertext point pointtype 7 pointsize 0.9 linecolor rgb '#ff000000' font 'sans-serif,18' notitle\n" \
+		"$name" "$name" >>"$work/plot.gnuplot" || exit 1
 	(cd "$work" && gnuplot plot.gnuplot) || exit 1
-	# Customize SVG controls and replace coordinate indices with release labels.
-	awk -F '\t' -v ink="$ink" -v surface="$surface" -v muted="$muted" '
-		FNR == NR { releases[++count] = $2; next }
+	# Style the SVG tooltips, legend, and controls.
+	awk -v ink="$ink" -v surface="$surface" -v muted="$muted" '
 		# Older gnuplot scripts embed a CDATA terminator in a JavaScript string.
 		{ gsub(/"]]>"/, "\"]]]]><![CDATA[>\"") }
-		# Reference the live plot so the blurred backdrop follows series toggles.
+		# Reference the plot for the blurred legend backdrop.
 		/<\/defs>/ {
 			print
 			print "<g id=\"plot-data\">"
@@ -247,23 +247,18 @@ do
 		}
 		/<\/svg>/ {
 			print "<style>"
-			printf "#coord_text, #hypertext { fill: %s; font-family: sans-serif; font-size: 18px; }\n", ink
+			print "#coord_text { display: none; }"
+			print "#hypertext, #hypertextbox { transform: translateY(-32px); }"
+			printf "#hypertext { fill: %s; font-family: sans-serif; font-size: 18px; }\n", ink
 			printf "#hypertextbox { fill: %s; stroke: %s; }\n", surface, muted
 			print "</style>"
 			print "<script type=\"text/javascript\"><![CDATA["
-			printf "var releases = ["
-			for (i = 1; i <= count; ++i)
-				printf "%s\"%s\"", (i > 1 ? ", " : ""), releases[i]
-			print "];"
-			print "function showRelease() {"
-			print "    var label = document.getElementById(\"coord_text\");"
-			print "    var coordinates = label.textContent.split(/\\s+/);"
-			print "    var release = releases[Math.round(Number(coordinates[0]))];"
-			print "    if (coordinates.length === 2 && release)"
-			print "        label.textContent = release + \" \" + coordinates[1] + \" MiB\";"
-			print "}"
-			print "window.addEventListener(\"mousemove\", showRelease);"
-			print "window.addEventListener(\"click\", showRelease);"
+			# Group native tooltip layers before gnuplot initializes its mouse handlers.
+			print "var tooltipPlots = Array.from(document.querySelectorAll(\"#plot-data > g\")).filter(function (plot) { return plot.querySelector(\"g[onmousemove]\"); });"
+			print "var keys = Array.from(new Set(Array.from(document.querySelectorAll(\"g[id$=_keyentry]\"), function (key) { return key.id; })));"
+			print "keys.forEach(function (key, i) {"
+			print "    document.getElementById(key.replace(\"_keyentry\", \"\")).appendChild(tooltipPlots[i]);"
+			print "});"
 			print "window.addEventListener(\"wheel\", function (event) {"
 			print "    event.stopImmediatePropagation();"
 			print "}, { capture: true, passive: true });"
@@ -277,7 +272,7 @@ do
 			print "]]></script>"
 		}
 		{ print }
-	' "$work/releases.tsv" "$work/$name.svg" >"$work/$name.svg.tmp" || exit 1
+	' "$work/$name.svg" >"$work/$name.svg.tmp" || exit 1
 	mv "$work/$name.svg.tmp" "$work/$name.svg" || exit 1
 	printf '<object data="plots/%s.svg" type="image/svg+xml" aria-label="%s"><a href="plots/%s.svg">%s</a></object>\n' \
 		"$name" "$title" "$name" "$title" >>"$work/index.html" || exit 1
