@@ -6,7 +6,7 @@
 >
 
 <title>Gnuplot</title>
-<desc>Produced by GNUPLOT 6.0 patchlevel 5 </desc>
+<desc>Produced by GNUPLOT 6.0 patchlevel 0 </desc>
 
 <script type="text/javascript" > <![CDATA[
 // From:	Marko Karjalainen <markokarjalainen@kolumbus.fi>
@@ -48,7 +48,7 @@ if (window) {
 
 gnuplot_svg = function (svgElement) {
 
-    var version = '17 February 2025';
+    var version = '09 April 2019';
 
     var settings = {};
 
@@ -100,9 +100,10 @@ gnuplot_svg = function (svgElement) {
     var parseSettings = function () {
         var script = svgElement.querySelectorAll('script');
         if (script && script[1]) {
-            // Chrome may break the original CDATA section into more than one piece,
-            // which will lead to failure if we don't combine them back into a single section.
-            var scriptText = script[1].innerHTML.replaceAll("<!\[CDATA\[", "").replaceAll("\]\]>", "")
+            // Chrome may break the original CDATA section into more than 1
+            // continous sections witch will lead to failure if we dont
+            // combine them back into 1
+            var scriptText = script[1].innerHTML.replaceAll("<![CDATA[", "").replaceAll("]]]]><![CDATA[>", "")
             // Remove inline comments
             scriptText = scriptText.replace(/^\s*\/\/.*\n/g, '');
             // Change prefix to "
@@ -352,20 +353,6 @@ gnuplot_svg = function (svgElement) {
         // Set coordinate label position
         coordinateText.element.setAttribute('x', position.x);
         coordinateText.element.setAttribute('y', position.y);
-
-        // Do not echo mouse coordinates for 3D plots
-        if (settings.plot_is_not_2D) {
-            coordinateText.element.textContent = '';
-            return;
-        }
-
-        // Echo coordinates only if mouse is in the active plot
-        // Allow one pixel of slop because exact mouse placement is hard
-        if ((position.x < settings.plot_xmin-1 || position.x > settings.plot_xmax+1)
-        ||  (position.y > settings.plot_ybot+1 || position.y < settings.plot_ytop-1)) {
-            coordinateText.element.textContent = '⇩';
-            return;
-        }
 
         // Convert svg position to plot coordinates
         var plotcoord = convertSVGToPlot(position);
@@ -1907,7 +1894,7 @@ onclick="gnuplot_svg.toggleCoordBox(evt)"  onmousemove="gnuplot_svg.moveCoordBox
 		<text><tspan font-family="sans-serif" >Size (MiB)</tspan></text>
 	</g>
 	<g transform="translate(58.00,432.01) rotate(270.00)" stroke="none" fill="rgb(181,184,186)" font-family="sans-serif" font-size="18.00"  text-anchor="middle">
-		<text><tspan font-family="sans-serif"  font-size="14.0">Lower is better</tspan></text>
+		<text><tspan font-family="sans-serif"  font-size="14.0">Lower is better</tspan><tspan font-size="18.0" dy="0.00"></tspan></text>
 	</g>
 </g>
 <g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
@@ -1922,7 +1909,7 @@ onclick="gnuplot_svg.toggleCoordBox(evt)"  onmousemove="gnuplot_svg.moveCoordBox
 		<text><tspan font-family="sans-serif" >Deployment Size</tspan></text>
 	</g>
 	<g transform="translate(831.99,84.31)" stroke="none" fill="rgb(246,247,248)" font-family="sans-serif" font-size="24.00"  text-anchor="middle">
-		<text><tspan font-family="sans-serif"  font-size="16.0">Release deployment of an empty project (samples/00-empty). Android measures the final APK; other targets sum deployed files.</tspan></text>
+		<text><tspan font-family="sans-serif"  font-size="16.0">Release deployment of an empty project (samples/00-empty). Android measures the final APK; other targets sum deployed files.</tspan><tspan font-size="24.0" dy="0.00"></tspan></text>
 	</g>
 </g>
 <g fill="none" color="black" stroke="currentColor" stroke-width="1.00" stroke-linecap="butt" stroke-linejoin="miter">
@@ -1938,7 +1925,6 @@ gnuplot_svg.plot_ybot = 738.0;
 gnuplot_svg.plot_ytop = 126.0;
 gnuplot_svg.plot_width = 1440.0;
 gnuplot_svg.plot_height = 612.0;
-gnuplot_svg.plot_is_not_2D = false;
 gnuplot_svg.plot_axis_xmin = 37;
 gnuplot_svg.plot_axis_xmax = 54;
 gnuplot_svg.plot_axis_ymin = 0;
