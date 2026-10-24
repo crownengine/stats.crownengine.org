@@ -35,7 +35,7 @@ GIT_INDEX_FILE=$work/index
 export GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 cd "$GIT_WORK_TREE" || exit 1
 git read-tree --empty || exit 1
-git add --force -- index.html plots .nojekyll || exit 1
+git add --force -- index.html plots unstable .nojekyll || exit 1
 if test -n "$previous"
 then
 	git ls-tree "$previous" -- CNAME >"$work/cname" || exit 1
@@ -54,6 +54,6 @@ then
 else
 	set --
 fi
-commit=$(printf 'Update Crown release size plots\n' | git commit-tree "$tree" "$@") || exit 1
+commit=$(printf 'Update Crown build size plots\n' | git commit-tree "$tree" "$@") || exit 1
 git update-ref refs/heads/gh-pages "$commit" "$previous" || exit 1
 echo "Updated local gh-pages to $commit"

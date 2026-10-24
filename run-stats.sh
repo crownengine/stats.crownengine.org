@@ -4,8 +4,9 @@ set -u
 
 usage () {
 	cat <<-EOF
-	usage: $0 [--deploy] [--deploy-platform <platform>] <release-label> <archive-url>...
+	usage: $0 [--unstable] [--deploy] [--deploy-platform <platform>] <build-label> <archive-url>...
 	Collect Crown package and binary sizes under data/.
+	Use --unstable to save nightly builds under data/unstable/.
 	Use --deploy to also measure release deployments of samples/00-empty.
 	EOF
 }
@@ -185,30 +186,14 @@ collect_deployments () {
 }
 
 collect_archive () {
-	url=$1
-	archive=${url%%\?*}
-	archive=${archive%%\#*}
-	archive=${archive##*/}
-	case "$archive" in
-	''|[!A-Za-z0-9]*|*[!A-Za-z0-9._+-]*)
-		echo "error: unsupported archive name: $archive" >&2
-		return 1
-		;;
-	esac
-	case "$archive" in
-	*.tar.gz|*.tgz|*.tar.xz|*.tar.bz2|*.tar|*.zip|*.AppImage|*.appimage) ;;
-	*)
-		echo "error: unsupported archive format: $archive" >&2
-		return 1
-		;;
-	esac
+	resolve_archive_url "$1" || return 1
 
 	echo "Collecting $release / $archive"
 	rm -rf "$work/extracted"
 	mkdir "$work/extracted" || return 1
 	curl --fail --location --silent --show-error --retry 2 \
 		--connect-timeout 30 --max-time 900 \
-		--output "$work/download" -- "$url" || return 1
+		--output "$work/download" -- "$download_url" || return 1
 	compressed=$(wc -c <"$work/download") || return 1
 	compressed=$((compressed))
 
@@ -304,23 +289,25 @@ collect_archive () {
 	mkdir -p "$release_dir" || return 1
 	mv "$work/archives.csv" "$release_dir/archives.csv" || return 1
 	mv "$work/binaries.csv" "$release_dir/binaries.csv" || return 1
-	if test ! -f "$root/data/releases.csv"
+	if test ! -f "$data_directory/releases.csv"
 	then
-		printf 'release\n' >"$root/data/releases.csv" || return 1
+		printf 'release\n' >"$data_directory/releases.csv" || return 1
 	fi
-	if ! grep -F -x "\"$release\"" "$root/data/releases.csv" >/dev/null 2>&1
+	if ! grep -F -x "\"$release\"" "$data_directory/releases.csv" >/dev/null 2>&1
 	then
-		printf '"%s"\n' "$release" >>"$root/data/releases.csv" || return 1
+		printf '"%s"\n' "$release" >>"$data_directory/releases.csv" || return 1
 	fi
 	echo "Recorded $compressed compressed bytes, $extracted extracted bytes"
 	test "$deploy" -eq 0 || collect_deployments || return 1
 }
 
+unstable=0
 deploy=0
 deploy_platform=
 while test $# -gt 0
 do
 	case "$1" in
+	--unstable) unstable=1 ;;
 	--deploy) deploy=1 ;;
 	--deploy-platform)
 		test $# -ge 2 || die 'missing deployment platform'
@@ -350,7 +337,11 @@ case "$0" in
 *) root=. ;;
 esac
 root=$(CDPATH='' cd "$root" && pwd) || exit 1
-release_dir=$root/data/$release
+# shellcheck source=archive-url.sh
+. "$root/archive-url.sh"
+data_directory=$root/data
+test "$unstable" -eq 0 || data_directory=$data_directory/unstable
+release_dir=$data_directory/$release
 LC_ALL=C
 export LC_ALL
 mkdir -p "$root/trash" || exit 1

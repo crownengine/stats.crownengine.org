@@ -2,19 +2,33 @@
 
 set -u
 
+unstable=0
+if test "${1:-}" = --unstable
+then
+	unstable=1
+	shift
+fi
 case "${1:-}" in
 -h|--help)
-	echo "usage: $0 [output-directory]"
+	echo "usage: $0 [--unstable] [output-directory]"
 	exit 0
 	;;
 esac
-test $# -le 1 || { echo "usage: $0 [output-directory]" >&2; exit 1; }
+test $# -le 1 || { echo "usage: $0 [--unstable] [output-directory]" >&2; exit 1; }
 case "$0" in
 */*) root=${0%/*} ;;
 *) root=. ;;
 esac
 root=$(CDPATH='' cd "$root" && pwd) || exit 1
 output=${1:-$root/site}
+data_directory=$root/data
+xlabel=Release
+if test "$unstable" -eq 1
+then
+	output=${1:-$root/site/unstable}
+	data_directory=$data_directory/unstable
+	xlabel=Build
+fi
 mkdir -p "$output/plots" "$root/trash" || exit 1
 output=$(CDPATH='' cd "$output" && pwd) || exit 1
 work=$(mktemp -d "$root/trash/plot.XXXXXX") || exit 1
@@ -23,7 +37,18 @@ trap 'exit 130' 1 2 3 15
 LC_ALL=C
 export LC_ALL
 
-test -s "$root/data/releases.csv" || { echo 'error: no release data' >&2; exit 1; }
+release_index=$data_directory/releases.csv
+if test ! -s "$release_index"
+then
+	test "$unstable" -eq 1 || { echo 'error: no release data' >&2; exit 1; }
+	printf 'release\n' >"$work/empty.csv" || exit 1
+	release_index=$work/empty.csv
+fi
+if test "$unstable" -eq 1
+then
+	tail -n 20 "$release_index" >"$work/recent.csv" || exit 1
+	release_index=$work/recent.csv
+fi
 command -v gnuplot >/dev/null 2>&1 || { echo 'error: gnuplot is required' >&2; exit 1; }
 
 index=0
@@ -35,14 +60,14 @@ do
 	release=${release#\"}
 	release=${release%\"}
 	version=${release#v}
-	if test "${version%%.*}" = 0
+	if test "$unstable" -eq 0 && test "${version%%.*}" = 0
 	then
 		version=${version#*.}
 		test "${version%%.*}" -ge 48 || continue
 	fi
 	index=$((index + 1))
 	printf '%s\t%s\n' "$index" "$release" >>"$work/releases.tsv" || exit 1
-	for csv in "$root/data/$release/archives.csv" "$root/data/$release/binaries.csv"
+	for csv in "$data_directory/$release/archives.csv" "$data_directory/$release/binaries.csv"
 	do
 		test -f "$csv" || continue
 		awk -F, -v release_index="$index" -v release="$release" '
@@ -62,7 +87,7 @@ do
 			NR == 1 { archives = ($2 == "url"); next }
 			{
 				for (i = 1; i <= NF; ++i) gsub(/^"|"$/, "", $i)
-				if (!archives && $4 == "development") next
+				if (!archives && $4 != "release") next
 				series = package($1)
 				if (archives) {
 					printf "%d\t%s\tarchives\t%s-compressed\t%s\n", release_index, release, series, $(NF - 1)
@@ -75,7 +100,7 @@ do
 			}
 		' "$csv" >>"$work/measurements.tsv" || exit 1
 	done
-	for csv in "$root/data/$release/deployments/"*.csv
+	for csv in "$data_directory/$release/deployments/"*.csv
 	do
 		test -f "$csv" || continue
 		platform=${csv##*/}
@@ -86,11 +111,11 @@ do
 			}
 		' "$csv" >>"$work/measurements.tsv" || exit 1
 	done
-done <"$root/data/releases.csv"
-test -s "$work/measurements.tsv" || { echo 'error: no measurements' >&2; exit 1; }
+done <"$release_index"
+test "$unstable" -eq 1 || test -s "$work/measurements.tsv" || { echo 'error: no measurements' >&2; exit 1; }
 sort -t "$(printf '\t')" -k3,3 -k4,4 -k1,1n "$work/measurements.tsv" >"$work/sorted.tsv" || exit 1
 
-awk -F '\t' -v directory="$work" '
+awk -F '\t' -v directory="$work" -v xlabel="$xlabel" '
 	FNR == NR { labels[$1] = $2; releases = $1; next }
 	{
 		plot = $3
@@ -101,7 +126,7 @@ awk -F '\t' -v directory="$work" '
 	END {
 		for (plot in count) {
 			file = directory "/" plot ".tsv"
-			printf "Release" >file
+			printf "%s", xlabel >file
 			for (column = 1; column <= count[plot]; ++column)
 				printf "\t%s", columns[plot, column] >file
 			printf "\n" >file
@@ -154,6 +179,10 @@ object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-
 <p>Click a legend entry to show or hide a series. Hover over a data point to see its size.</p>
 EOF
 
+if test ! -s "$work/measurements.tsv"
+then
+	printf '<p>No unstable build data yet.</p>\n' >>"$work/index.html" || exit 1
+fi
 for table in "$work"/deployment.tsv "$work"/runtime-*.tsv "$work"/editor.tsv "$work"/archives.tsv
 do
 	test -f "$table" || continue
@@ -180,7 +209,7 @@ do
 	set datafile separator '\t'
 	set datafile columnheaders
 	set datafile missing 'NaN'
-	set xlabel 'Release' noenhanced textcolor rgb '$muted'
+	set xlabel '$xlabel' noenhanced textcolor rgb '$muted'
 	set ylabel "Size (MiB)\n{/=14 Lower is better}" enhanced textcolor rgb '$muted'
 	set yrange [0:*]
 	set lmargin at screen 0.07
@@ -286,8 +315,16 @@ do
 		"$name" "$title" "$name" "$title" >>"$work/index.html" || exit 1
 done
 printf '</html>\n' >>"$work/index.html" || exit 1
-rm -f "$output/plots/runtime-development.svg" || exit 1
-cp "$work"/*.svg "$output/plots/" || exit 1
+rm -f "$output/plots/runtime-debug.svg" "$output/plots/runtime-development.svg" || exit 1
+for svg in "$work"/*.svg
+do
+	test -f "$svg" || continue
+	cp "$svg" "$output/plots/" || exit 1
+done
 cp "$work/index.html" "$output/index.html" || exit 1
 : >"$output/.nojekyll"
 echo "Generated $output/index.html"
+if test "$unstable" -eq 0
+then
+	"$root/plot.sh" --unstable "$output/unstable" || exit 1
+fi

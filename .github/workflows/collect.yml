@@ -17,6 +17,7 @@ jobs:
     runs-on: ubuntu-24.04
     outputs:
       release: ${{ steps.request.outputs.release }}
+      data_directory: ${{ steps.request.outputs.data_directory }}
       windows: ${{ steps.request.outputs.windows }}
     steps:
       - uses: actions/checkout@v7
@@ -31,6 +32,7 @@ jobs:
           if test -f "$RUNNER_TEMP/request/release"
           then
             echo "release=$(cat "$RUNNER_TEMP/request/release")" >> "$GITHUB_OUTPUT"
+            echo "data_directory=$(cat "$RUNNER_TEMP/request/data-directory")" >> "$GITHUB_OUTPUT"
             if test -s "$RUNNER_TEMP/request/windows-urls"
             then
               echo 'windows=true' >> "$GITHUB_OUTPUT"
@@ -50,6 +52,7 @@ jobs:
     timeout-minutes: 60
     env:
       RELEASE: ${{ needs.request.outputs.release }}
+      DATA_DIRECTORY: ${{ needs.request.outputs.data_directory }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -80,20 +83,24 @@ jobs:
       - name: Collect sizes and deployments
         shell: bash
         run: |
-          set --
+          set -- "$RELEASE"
           while IFS= read -r url
           do
             set -- "$@" "$url"
           done < "$RUNNER_TEMP/request/urls"
+          if test "$DATA_DIRECTORY" = data/unstable
+          then
+            set -- --unstable "$@"
+          fi
           mkdir -p trash
-          xvfb-run -a ./run-stats.sh --deploy "$RELEASE" "$@" 2>&1 | tee trash/collection.log
+          xvfb-run -a ./run-stats.sh --deploy "$@" 2>&1 | tee trash/collection.log
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: collected-linux
           path: |
-            data/releases.csv
-            data/${{ env.RELEASE }}/
+            ${{ env.DATA_DIRECTORY }}/releases.csv
+            ${{ env.DATA_DIRECTORY }}/${{ env.RELEASE }}/
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v7
@@ -111,6 +118,7 @@ jobs:
     timeout-minutes: 30
     env:
       RELEASE: ${{ needs.request.outputs.release }}
+      DATA_DIRECTORY: ${{ needs.request.outputs.data_directory }}
     steps:
       - uses: actions/checkout@v7
         with:
@@ -129,20 +137,24 @@ jobs:
           set -euo pipefail
           request=$(cygpath -u "$RUNNER_TEMP")/request
           mkdir -p trash
-          rm -f "data/$RELEASE/deployments/windows64.csv"
-          set --
+          rm -f "$DATA_DIRECTORY/$RELEASE/deployments/windows64.csv"
+          set -- "$RELEASE"
           while IFS= read -r url
           do
             set -- "$@" "$url"
           done < "$request/windows-urls"
-          sh ./run-stats.sh --deploy --deploy-platform windows64 "$RELEASE" "$@" 2>&1 | tee trash/collection.log
+          if test "$DATA_DIRECTORY" = data/unstable
+          then
+            set -- --unstable "$@"
+          fi
+          sh ./run-stats.sh --deploy --deploy-platform windows64 "$@" 2>&1 | tee trash/collection.log
       - uses: actions/upload-artifact@v7
         if: always()
         with:
           name: collected-windows
           path: |
-            data/releases.csv
-            data/${{ env.RELEASE }}/
+            ${{ env.DATA_DIRECTORY }}/releases.csv
+            ${{ env.DATA_DIRECTORY }}/${{ env.RELEASE }}/
           if-no-files-found: ignore
           retention-days: 7
       - uses: actions/upload-artifact@v7
@@ -167,6 +179,7 @@ jobs:
       commit: ${{ steps.revision.outputs.commit }}
     env:
       RELEASE: ${{ needs.request.outputs.release }}
+      DATA_DIRECTORY: ${{ needs.request.outputs.data_directory }}
       COLLECTION_BRANCH: ${{ github.ref_name }}
       LINUX_RESULT: ${{ needs.linux.result }}
     steps:
@@ -177,7 +190,7 @@ jobs:
         if: needs.linux.result == 'success'
         with:
           name: collected-linux
-          path: data
+          path: ${{ runner.temp }}/linux-result
       - uses: actions/download-artifact@v8
         if: needs.windows.result == 'success'
         with:
@@ -188,21 +201,17 @@ jobs:
         run: |
           if test "$LINUX_RESULT" != success
           then
-            cp -R "$RUNNER_TEMP/windows-result/." data/
-          elif test -f "$RUNNER_TEMP/windows-result/$RELEASE/deployments/windows64.csv"
-          then
-            mkdir -p "data/$RELEASE/deployments"
-            cp "$RUNNER_TEMP/windows-result/$RELEASE/deployments/windows64.csv" "data/$RELEASE/deployments/"
+            result="$RUNNER_TEMP/windows-result"
+          else
+            result="$RUNNER_TEMP/linux-result"
           fi
-          git add -- data/releases.csv "data/$RELEASE"
-          if git diff --cached --quiet
+          if test "$LINUX_RESULT" = success && test -f "$RUNNER_TEMP/windows-result/$RELEASE/deployments/windows64.csv"
           then
-            echo 'Measurements are unchanged'
-            exit 0
+            mkdir -p "$result/$RELEASE/deployments"
+            cp "$RUNNER_TEMP/windows-result/$RELEASE/deployments/windows64.csv" "$result/$RELEASE/deployments/"
           fi
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-          git commit -m "Update stats for $RELEASE"
           for attempt in 1 2 3
           do
             echo "Saving measurements (attempt $attempt)"
@@ -211,7 +220,24 @@ jobs:
               echo 'Branch history changed; refusing to push outdated results' >&2
               exit 1
             }
-            git rebase FETCH_HEAD
+            git switch --detach FETCH_HEAD
+            mkdir -p "$DATA_DIRECTORY/$RELEASE"
+            cp -R "$result/$RELEASE/." "$DATA_DIRECTORY/$RELEASE/"
+            if test ! -f "$DATA_DIRECTORY/releases.csv"
+            then
+              printf 'release\n' > "$DATA_DIRECTORY/releases.csv"
+            fi
+            if ! grep -F -x "\"$RELEASE\"" "$DATA_DIRECTORY/releases.csv" > /dev/null
+            then
+              printf '"%s"\n' "$RELEASE" >> "$DATA_DIRECTORY/releases.csv"
+            fi
+            git add -- "$DATA_DIRECTORY/releases.csv" "$DATA_DIRECTORY/$RELEASE"
+            if git diff --cached --quiet
+            then
+              echo 'Measurements are unchanged'
+              exit 0
+            fi
+            git commit -m "Update stats for $RELEASE"
             if git push origin "HEAD:refs/heads/$COLLECTION_BRANCH"
             then
               exit 0
@@ -251,8 +277,8 @@ jobs:
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git fetch origin gh-pages:gh-pages
           ./publish.sh
-          git archive gh-pages plots | tar -x -C "$RUNNER_TEMP"
-          xmllint --noout "$RUNNER_TEMP"/plots/*.svg
+          git archive gh-pages plots unstable | tar -x -C "$RUNNER_TEMP"
+          find "$RUNNER_TEMP/plots" "$RUNNER_TEMP/unstable" -name '*.svg' -exec xmllint --noout {} +
           git push origin gh-pages
       - name: Request Pages build
         env:

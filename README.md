@@ -1,6 +1,6 @@
 # Crown Stats
 
-Measure Crown release sizes and generate plots.
+Measure Crown build sizes and generate plots.
 
 Requires curl, tar, unzip, and gnuplot.
 
@@ -14,6 +14,9 @@ Collect a release using one or more archive URLs:
 Results are saved under `data/`. Add `--deploy` before the release label to also
 measure deployments.
 
+Use `--unstable` to save nightly builds under `data/unstable/`. Google Drive
+links are supported directly.
+
 To collect automatically, push a commit with this message (one archive URL per
 line). GitHub Actions reads the tip commit and commits the results to the same
 branch:
@@ -25,13 +28,23 @@ https://github.com/crownengine/crown/releases/download/v0.65.4/crown-0.65.4-linu
 https://github.com/crownengine/crown/releases/download/v0.65.4/crown-0.65.4-windows-x64.zip
 ```
 
-Generate the page:
+For nightly builds:
+
+```text
+stats: unstable 0.66.0-master-abcdef
+
+https://drive.google.com/uc?export=download&id=LINUX_FILE_ID
+https://drive.google.com/uc?export=download&id=WINDOWS_FILE_ID
+```
+
+Generate both pages:
 
 ```sh
 ./plot.sh
 ```
 
-Open `site/index.html` to view the plots.
+Open `site/index.html` or `site/unstable/index.html`. Use `./plot.sh --unstable`
+to generate only the nightly page.
 
 Update the local `gh-pages` branch (does not push):
 
