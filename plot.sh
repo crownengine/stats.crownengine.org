@@ -23,11 +23,13 @@ root=$(CDPATH='' cd "$root" && pwd) || exit 1
 output=${1:-$root/site}
 data_directory=$root/data
 xlabel=Release
+site_path=.
 if test "$unstable" -eq 1
 then
 	output=${1:-$root/site/unstable}
 	data_directory=$data_directory/unstable
 	xlabel=Build
+	site_path=..
 fi
 mkdir -p "$output/plots" "$root/trash" || exit 1
 output=$(CDPATH='' cd "$output" && pwd) || exit 1
@@ -176,6 +178,7 @@ a { color: $brand; }
 object { display: block; width: 100%; aspect-ratio: 16 / 9; margin: 2rem 0; box-sizing: border-box; background: $surface; border: 1px solid $line; border-radius: 0.5rem; }
 </style>
 <h1>Crown Build Sizes</h1>
+<p><a href="$site_path/">Stable</a> · <a href="$site_path/unstable/">Nightly</a></p>
 <p>Click a legend entry to show or hide a series. Hover over a data point to see its size.</p>
 EOF
 
